@@ -23,7 +23,6 @@ struct SongEntry {
     data: Option<Vec<u8>>,
 }
 
-
 #[tonic::async_trait]
 impl Greeter for MyGreeter {
     // This Method implements adding data to the db
@@ -43,20 +42,25 @@ impl Greeter for MyGreeter {
     async fn query_meta(&self, request: Request<SongName>) -> Result<Response<SongMeta>, Status> {
         println!("Got a request: {:?}", request);
         // TODO: do something with request.name
-        let query = "SELECT name, artist, album, artwork, lyrics FROM songs WHERE songs.fname = {}".format(request.into_inner().song_name);
+        let query = format!(
+            "SELECT fname, name, artist, album, artwork, lyrics FROM songs WHERE songs.fname = {}",
+            request.into_inner().song_name
+        );
 
         let db = self.db.lock().unwrap();
-        let stmt = db.prepare(&query);
-
-
-        let reply = hello_world::SongMeta {
-            name: String::from("name of song"),
-            artist: String::from("artist "),
-            album: String::from("album name "),
-            artwork: String::from("artwork location "),
-            lyrics: String::from("Lyrics"),
-        };
-        Ok(Response::new(reply))
+        let mut stmt = db.prepare(&query).unwrap();
+        let song_iter = stmt.query_map([], |row| {
+            Ok(SongMeta {
+                fname: row.get(1)?,
+                name: row.get(2)?,
+                artist: row.get(3)?,
+                album: row.get(4)?,
+                artwork: row.get(5)?,
+                lyrics: row.get(6)?,
+            })
+        });
+        let res = song_iter.unwrap().next().unwrap().unwrap();
+        Ok(Response::new(res))
     }
 }
 
@@ -67,6 +71,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let greeter = MyGreeter {
         db: Mutex::new(Connection::open("song_meta_db.db").unwrap()), // hope it does not break ...
     };
+    greeter.db.lock().unwrap().execute(
+        "CREATE TABLE songs (
+                    fname   TEXT PRIMARY KEY,
+                    name    TEXT NOT NULL,
+                    artist  TEXT NOT NULL,
+                    album   TEXT NOT NULL,
+                    artwork TEXT NOT NULL,
+                    lyrics  TEXT NOT NULL,
+                  )",
+        [],
+    )?;
 
     Server::builder()
         .add_service(GreeterServer::new(greeter))

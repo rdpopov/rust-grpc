@@ -14,11 +14,12 @@ message SongName {
 // QueryMeta output
 // AddMeta input
 message SongMeta {
-    string name = 1;
-    string artist = 2;
-    string album = 3;
-    string artwork = 4;
-    string lyrics = 5;
+    string fname = 1;
+    string name = 2;
+    string artist = 3;
+    string album = 4;
+    string artwork = 5;
+    string lyrics = 6;
 }
 
 // AddResult result

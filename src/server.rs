@@ -26,6 +26,7 @@ struct SongEntry {
 #[tonic::async_trait]
 impl Greeter for MyGreeter {
     // This Method implements adding data to the db
+    // NOTE: this works
     async fn add_meta(&self, request: Request<SongMeta>) -> Result<Response<AddResult>, Status> {
         let req = request.into_inner();
         // NOTE: this is iffy does the mutex drop the guard when the request is done?
@@ -39,26 +40,31 @@ impl Greeter for MyGreeter {
         };
         Ok(Response::new(reply))
     }
+
     async fn query_meta(&self, request: Request<SongName>) -> Result<Response<SongMeta>, Status> {
         println!("Got a request: {:?}", request);
         // TODO: do something with request.name
         let query = format!(
-            "SELECT fname, name, artist, album, artwork, lyrics FROM songs WHERE songs.fname = {}",
+            "SELECT fname, name, artist, album, artwork, lyrics FROM songs WHERE fname = \"{}\"",
             request.into_inner().song_name
         );
+        println!("{}",query);
 
         let db = self.db.lock().unwrap();
         let mut stmt = db.prepare(&query).unwrap();
+
+        // TODO: add a way to release the lock when a query fails
         let song_iter = stmt.query_map([], |row| {
             Ok(SongMeta {
-                fname: row.get(1)?,
-                name: row.get(2)?,
-                artist: row.get(3)?,
-                album: row.get(4)?,
-                artwork: row.get(5)?,
-                lyrics: row.get(6)?,
+                fname: row.get(0)?,
+                name: row.get(1)?,
+                artist: row.get(2)?,
+                album: row.get(3)?,
+                artwork: row.get(4)?,
+                lyrics: row.get(5)?,
             })
         });
+
         let res = song_iter.unwrap().next().unwrap().unwrap();
         Ok(Response::new(res))
     }
@@ -71,17 +77,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let greeter = MyGreeter {
         db: Mutex::new(Connection::open("song_meta_db.db").unwrap()), // hope it does not break ...
     };
+
     greeter.db.lock().unwrap().execute(
-        "CREATE TABLE songs (
-                    fname   TEXT PRIMARY KEY,
-                    name    TEXT NOT NULL,
-                    artist  TEXT NOT NULL,
-                    album   TEXT NOT NULL,
-                    artwork TEXT NOT NULL,
-                    lyrics  TEXT NOT NULL,
-                  )",
-        [],
-    )?;
+        "CREATE TABLE IF NOT EXISTS songs (
+            fname   TEXT PRIMARY KEY,
+            name    TEXT NOT NULL,
+            artist  TEXT NOT NULL,
+            album   TEXT NOT NULL,
+            artwork TEXT NOT NULL,
+            lyrics  TEXT NOT NULL)", [])?; 
+
+    println!("Running ... ");
 
     Server::builder()
         .add_service(GreeterServer::new(greeter))

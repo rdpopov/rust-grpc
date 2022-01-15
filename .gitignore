@@ -1,0 +1,3 @@
+target/*
+Cargo.lock
+song_meta_db.db

@@ -18,26 +18,53 @@ pub struct MyGreeter {
 
 #[tonic::async_trait]
 impl Greeter for MyGreeter {
-    // TODO: add a method for updating the db, diffrent from add meta
-    /// Adds to existing database if not exiting, crash if existing, that will teache them
+    /// Add metadata for a song of filename fname
+    /// returns 1 if song does not exit and was successfull
+    ///         0 otherwise
     ///
-    /// * `request`: 
+    /// * `request`:
     async fn add_meta(&self, request: Request<SongMeta>) -> Result<Response<AddResult>, Status> {
         let req = request.into_inner();
         let res = self.db.lock().unwrap().execute(
             "INSERT INTO songs (fname, name, artist, album, artwork, lyrics) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![req.fname ,req.name, req.artist, req.album, req.artwork, req.lyrics],
         );
-        let reply = hello_world::AddResult {
-            // TODO: adda error handling fro this one so tokio doesnt shit the bed
-            result: format!("Done {}", res.unwrap()),
+
+        let reply = AddResult {
+            result: match res {
+                Err(_) => "0".to_string(),
+                Ok(_) => "1".to_string(),
+            },
         };
+
+        Ok(Response::new(reply))
+    }
+
+    /// Update metadata for a song of filename fname
+    /// returns 0 if song does not exit or failed somehow
+    ///         1 otherwise
+    ///
+    /// * `request`: 
+    async fn update_meta(&self, request: Request<SongMeta>) -> Result<Response<AddResult>, Status> {
+        let req = request.into_inner();
+        let res = self.db.lock().unwrap().execute(
+            "UPDATE songs SET name = ?1, artist = ?2, album = ?3, artwork = ?4, lyrics = ?4 WHERE fname = ?6",
+            params![req.name, req.artist, req.album, req.artwork, req.lyrics, req.fname],
+        );
+
+        let reply = AddResult {
+            result: match res {
+                Err(_) => "0".to_string(),
+                Ok(_) => "1".to_string(),
+            },
+        };
+
         Ok(Response::new(reply))
     }
 
     /// Query metadta by using filename
     ///
-    /// * `request`: 
+    /// * `request`:
     async fn query_meta(&self, request: Request<SongName>) -> Result<Response<SongMeta>, Status> {
         println!("Got a request: {:?}", request);
         let query = format!(
@@ -61,15 +88,17 @@ impl Greeter for MyGreeter {
         });
         let res = song_iter.unwrap().next();
         match res {
-            None => return Ok(Response::new(SongMeta {
-                fname: "None".to_string(),
-                name: "None".to_string(),
-                artist: "None".to_string(),
-                album: "None".to_string(),
-                artwork: "None".to_string(),
-                lyrics: "None".to_string(),
-            })),
-            _ => return  Ok(Response::new(res.unwrap().unwrap())),
+            None => {
+                return Ok(Response::new(SongMeta {
+                    fname: "None".to_string(),
+                    name: "None".to_string(),
+                    artist: "None".to_string(),
+                    album: "None".to_string(),
+                    artwork: "None".to_string(),
+                    lyrics: "None".to_string(),
+                }))
+            }
+            _ => return Ok(Response::new(res.unwrap().unwrap())),
         };
     }
 }

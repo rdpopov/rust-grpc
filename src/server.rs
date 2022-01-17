@@ -18,6 +18,10 @@ pub struct MyGreeter {
 
 #[tonic::async_trait]
 impl Greeter for MyGreeter {
+    // TODO: add a method for updating the db, diffrent from add meta
+    /// Adds to existing database if not exiting, crash if existing, that will teache them
+    ///
+    /// * `request`: 
     async fn add_meta(&self, request: Request<SongMeta>) -> Result<Response<AddResult>, Status> {
         let req = request.into_inner();
         let res = self.db.lock().unwrap().execute(
@@ -25,14 +29,19 @@ impl Greeter for MyGreeter {
             params![req.fname ,req.name, req.artist, req.album, req.artwork, req.lyrics],
         );
         let reply = hello_world::AddResult {
+            // TODO: adda error handling fro this one so tokio doesnt shit the bed
             result: format!("Done {}", res.unwrap()),
         };
         Ok(Response::new(reply))
     }
 
+    /// Query metadta by using filename
+    ///
+    /// * `request`: 
     async fn query_meta(&self, request: Request<SongName>) -> Result<Response<SongMeta>, Status> {
         println!("Got a request: {:?}", request);
         let query = format!(
+            // TODO: maybe make it so that this uses name as well, can be beneficial
             "SELECT fname, name, artist, album, artwork, lyrics FROM songs WHERE fname = \"{}\"",
             request.into_inner().song_name
         );

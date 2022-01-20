@@ -24,6 +24,7 @@ impl Greeter for MyGreeter {
     ///
     /// * `request`:
     async fn add_meta(&self, request: Request<SongMeta>) -> Result<Response<AddResult>, Status> {
+        println!("add_meta : Got a request: {:#?}", request);
         let req = request.into_inner();
         let res = self.db.lock().unwrap().execute(
             "INSERT INTO songs (fname, name, artist, album, artwork, lyrics) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -46,6 +47,7 @@ impl Greeter for MyGreeter {
     ///
     /// * `request`: 
     async fn update_meta(&self, request: Request<SongMeta>) -> Result<Response<AddResult>, Status> {
+        println!("add_meta : Got a request: {:#?}", request);
         let req = request.into_inner();
         let res = self.db.lock().unwrap().execute(
             "UPDATE songs SET name = ?1, artist = ?2, album = ?3, artwork = ?4, lyrics = ?4 WHERE fname = ?6",
@@ -66,6 +68,7 @@ impl Greeter for MyGreeter {
     ///
     /// * `request`:
     async fn query_meta(&self, request: Request<SongName>) -> Result<Response<SongMeta>, Status> {
+        println!("add_meta : Got a request: {:#?}", request);
         println!("Got a request: {:?}", request);
         let query = format!(
             // TODO: maybe make it so that this uses name as well, can be beneficial
